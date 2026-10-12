@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""t2p — terminal front-end for thesis2paper (a project-aware wrapper around Claude Code).
+
+  t2p                          interactive session (lab level)
+  t2p <project>                interactive session focused on a project (shows status first)
+  t2p <project> "<message>"    interactive session starting with your message (e.g. "/t2p-assess p")
+  t2p new <name> <thesis> <repo> [--venue v] [--papers ...]
+  t2p ls                       list projects (no LLM)
+  t2p status <project>         stage, ledger, runs, budget, pending decision (no LLM)
+  t2p runs <project>           experiment runs (no LLM)
+  t2p auto <project> [--until stage]   run the pipeline unattended in the background
+  t2p tail <project> [-f]      follow the latest background run
+  t2p stop <project>           stop the background run
+  t2p resume <project>         reopen the latest session (interactive or background) and take over
+  t2p sessions <project>       list recorded sessions
+"""
+import datetime as dt
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+import uuid
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(os.path.realpath(__file__)).parent.parent
+SCRIPTS = ROOT / "scripts"
+SYSTEM = ROOT / ".claude" / "t2p-system.md"
+STAGES = ["intake", "assess", "plan", "run", "report", "write"]
+
+B, D, R, G, Y, C, X = "\033[1m", "\033[2m", "\033[31m", "\033[32m", "\033[33m", "\033[36m", "\033[0m"
+if not sys.stdout.isatty():
+    B = D = R = G = Y = C = X = ""
+
+
+# ---------- helpers ----------
+def projects():
+    return sorted(p.name for p in (ROOT / "projects").iterdir()
+                  if p.is_dir() and not p.name.startswith("_") and (p / "project.yaml").exists())
+
+
+def proj_dir(name):
+    p = ROOT / "projects" / name
+    if not (p / "project.yaml").exists():
+        sys.exit(f"no such project '{name}'. Projects: {', '.join(projects()) or '(none)'}")
+    return p
+
+
+def cfg(name):
+    return yaml.safe_load((proj_dir(name) / "project.yaml").read_text())
+
+
+def pending_decision(p: Path):
+    """Latest decision file whose Decision section is still empty/pending."""
+    files = sorted((p / "wiki" / "decisions").glob("[0-9]*.md"))
+    if not files:
+        return None
+    last = files[-1]
+    m = re.search(r"^#+\s*Decision\s*$(.*?)(?=^#+\s|\Z)", last.read_text(), re.S | re.M | re.I)
+    body = (m.group(1) if m else "").strip().lower()
+    return last.name if (not body or body.startswith(("pending", "_pending", "tbd"))) else None
+
+
+def sessions_file(p: Path):
+    d = p / ".t2p"
+    d.mkdir(exist_ok=True)
+    return d / "sessions.jsonl"
+
+
+def record_session(p: Path, **kw):
+    kw.setdefault("started", dt.datetime.now().isoformat(timespec="seconds"))
+    with open(sessions_file(p), "a") as f:
+        f.write(json.dumps(kw) + "\n")
+
+
+def read_sessions(p: Path):
+    f = sessions_file(p)
+    return [json.loads(l) for l in f.read_text().splitlines() if l.strip()] if f.exists() else []
+
+
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, TypeError):
+        return False
+    except PermissionError:
+        return True
+
+
+def auto_active(p: Path, s: dict) -> bool:
+    """A background run is active if its process lives AND its log has no final 'result' event."""
+    if s.get("kind") != "auto" or not alive(s.get("pid")):
+        return False
+    log = p / s.get("log", "")
+    try:
+        tail = log.read_bytes()[-20000:].decode(errors="ignore")
+    except OSError:
+        return True
+    return '"type":"result"' not in tail.replace(" ", "")
+
+
+def claude_base(project=None, name=None, session_id=None):
+    cmd = ["claude", "--append-system-prompt-file", str(SYSTEM)]
+    if name:
+        cmd += ["-n", name]
+    if session_id:
+        cmd += ["--session-id", session_id]
+    return cmd
+
+
+def env_for(project):
+    env = os.environ.copy()
+    env["T2P_ROOT"] = str(ROOT)
+    if project:
+        env["T2P_PROJECT"] = project
+    return env
+
+
+# ---------- commands ----------
+def cmd_interactive(project=None, message=None):
+    os.chdir(ROOT)
+    sid = str(uuid.uuid4())
+    name = f"t2p:{project}" if project else "t2p"
+    cmd = claude_base(project, name, sid)
+    if project:
+        proj_dir(project)
+        record_session(proj_dir(project), kind="interactive", id=sid)
+        message = message or f"/t2p-status {project}"
+    if message:
+        cmd.append(message)
+    os.execvpe("claude", cmd, env_for(project))
+
+
+def cmd_new(args):
+    if subprocess.run([sys.executable, str(SCRIPTS / "new_project.py"), *args]).returncode:
+        sys.exit(1)
+    name = args[0]
+    print(f"\n{B}next:{X} t2p {name}   {D}(then /t2p-intake {name}){X}")
+
+
+def cmd_ls(_):
+    rows = projects()
+    if not rows:
+        print("no projects yet — t2p new <name> <thesis> <repo>")
+        return
+    print(f"{B}{'project':<22}{'stage':<10}{'round':<7}{'venue':<24}{'auto run':<10}pending decision{X}")
+    for n in rows:
+        p, c = proj_dir(n), cfg(n)
+        st = c.get("state", {})
+        bg = [s for s in read_sessions(p) if s.get("kind") == "auto"]
+        running = "yes" if bg and auto_active(p, bg[-1]) else "-"
+        pend = pending_decision(p) or "-"
+        print(f"{n:<22}{st.get('stage', '?'):<10}{st.get('round', 0)!s:<7}{c['target'].get('venue', '?'):<24}"
+              f"{running:<10}{Y + pend + X if pend != '-' else pend}")
+
+
+def cmd_status(args):
+    name = args[0]
+    p, c = proj_dir(name), cfg(name)
+    st, t = c.get("state", {}), c.get("target", {})
+    print(f"{B}{name}{X}  stage {C}{st.get('stage')}{X}  round {st.get('round')}  venue {t.get('venue')}")
+    if t.get("headline"):
+        print(f"{D}headline:{X} {t['headline']}")
+    print(f"{D}mode:{X} {c.get('mode', {}).get('default')}  "
+          f"{D}overrides:{X} {', '.join(f'{k}={v}' for k, v in (c.get('mode', {}).get('stages') or {}).items())}\n")
+    print(f"{B}ledger{X}")
+    subprocess.run([sys.executable, str(SCRIPTS / "t2p_ledger.py"), "table", name])
+    print(f"\n{B}runs{X}")
+    subprocess.run([sys.executable, str(SCRIPTS / "t2p_run.py"), "status", name])
+    subprocess.run([sys.executable, str(SCRIPTS / "t2p_run.py"), "budget", name])
+    pend = pending_decision(p)
+    print(f"\n{B}decision{X} " + (f"{Y}pending: wiki/decisions/{pend}{X}" if pend else "none pending"))
+    pdfs = sorted((p / "outputs").rglob("*.pdf"), key=lambda f: f.stat().st_mtime)[-2:]
+    for f in pdfs:
+        print(f"{D}latest:{X} {f.relative_to(ROOT)}")
+    bg = [s for s in read_sessions(p) if s.get("kind") == "auto"]
+    if bg and auto_active(p, bg[-1]):
+        print(f"{G}background run active{X} (t2p tail {name} -f)")
+
+
+def cmd_runs(args):
+    subprocess.run([sys.executable, str(SCRIPTS / "t2p_run.py"), "status", *args])
+
+
+def cmd_auto(args):
+    name = args[0]
+    until = args[args.index("--until") + 1] if "--until" in args else ""
+    if until and until not in STAGES:
+        sys.exit(f"--until must be one of {STAGES}")
+    p = proj_dir(name)
+    bg = [s for s in read_sessions(p) if s.get("kind") == "auto"]
+    if bg and auto_active(p, bg[-1]):
+        sys.exit(f"a background run is already active (pid {bg[-1]['pid']}). t2p tail {name} -f / t2p stop {name}")
+    sid = str(uuid.uuid4())
+    logdir = p / ".t2p" / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
+    log = logdir / f"auto-{dt.datetime.now():%Y%m%d-%H%M%S}.jsonl"
+    prompt = f"/t2p-auto {name} {until}".strip()
+    cmd = claude_base(name, f"t2p-auto:{name}", sid) + [
+        "-p", prompt, "--output-format", "stream-json", "--verbose", "--permission-mode", "auto"]
+    with open(log, "w") as out:
+        proc = subprocess.Popen(cmd, cwd=ROOT, env=env_for(name), stdout=out, stderr=subprocess.STDOUT,
+                                stdin=subprocess.DEVNULL, start_new_session=True)
+    record_session(p, kind="auto", id=sid, pid=proc.pid, log=str(log.relative_to(p)), prompt=prompt)
+    print(f"{G}started{X} background run for {name} (pid {proc.pid}){' until ' + until if until else ''}\n"
+          f"  follow:   t2p tail {name} -f\n  take over: t2p resume {name}\n  stop:     t2p stop {name}")
+
+
+def fmt_event(ev):
+    t = ev.get("type")
+    if t == "assistant":
+        for item in ev.get("message", {}).get("content", []):
+            if item.get("type") == "text" and item["text"].strip():
+                print(item["text"].strip() + "\n")
+            elif item.get("type") == "tool_use":
+                inp = item.get("input", {})
+                desc = inp.get("description") or inp.get("command") or inp.get("file_path") or inp.get("prompt", "")
+                desc = " ".join(str(desc).split())[:110]
+                print(f"{D}  ⏺ {item['name']}: {desc}{X}")
+    elif t == "result":
+        ok = not ev.get("is_error")
+        print(f"\n{G if ok else R}{B}■ finished{X} ({ev.get('subtype', '')}, "
+              f"{ev.get('duration_ms', 0) / 60000:.1f} min, ${ev.get('total_cost_usd', 0):.2f})")
+
+
+def cmd_tail(args):
+    name, follow = args[0], "-f" in args
+    p = proj_dir(name)
+    bg = [s for s in read_sessions(p) if s.get("kind") == "auto"]
+    if not bg:
+        sys.exit("no background runs")
+    s = bg[-1]
+    log = p / s["log"]
+    with open(log) as f:
+        while True:
+            line = f.readline()
+            if line:
+                try:
+                    fmt_event(json.loads(line))
+                except json.JSONDecodeError:
+                    print(line.rstrip())
+                continue
+            if not follow or not auto_active(p, s):
+                break
+            time.sleep(1)
+    if not auto_active(p, s):
+        print(f"{D}(run ended){X}")
+
+
+def cmd_stop(args):
+    p = proj_dir(args[0])
+    bg = [s for s in read_sessions(p) if s.get("kind") == "auto"]
+    if not bg or not auto_active(p, bg[-1]):
+        print("no active background run")
+        return
+    os.killpg(bg[-1]["pid"], signal.SIGTERM)
+    print(f"stopped pid {bg[-1]['pid']}. Experiment jobs it launched keep running (t2p runs {args[0]}). "
+          f"Take over with: t2p resume {args[0]}")
+
+
+def cmd_resume(args):
+    name = args[0]
+    p = proj_dir(name)
+    ss = read_sessions(p)
+    if not ss:
+        sys.exit(f"no sessions recorded; start one with: t2p {name}")
+    s = ss[-1]
+    if auto_active(p, s):
+        sys.exit(f"background run still active — t2p stop {name} first, or follow it with t2p tail {name} -f")
+    os.chdir(ROOT)
+    os.execvpe("claude", ["claude", "--append-system-prompt-file", str(SYSTEM), "--resume", s["id"]], env_for(name))
+
+
+def cmd_sessions(args):
+    p = proj_dir(args[0])
+    for s in read_sessions(p):
+        state = "active" if auto_active(p, s) else ""
+        print(f"{s['started']}  {s['kind']:<12}{s['id']}  {s.get('prompt', '')}  {state}")
+
+
+SUB = {"new": cmd_new, "ls": cmd_ls, "status": cmd_status, "runs": cmd_runs, "auto": cmd_auto,
+       "tail": cmd_tail, "stop": cmd_stop, "resume": cmd_resume, "sessions": cmd_sessions}
+
+
+def main():
+    sys.stdout.reconfigure(line_buffering=True)
+    a = sys.argv[1:]
+    if not a:
+        return cmd_interactive()
+    if a[0] in ("-h", "--help", "help"):
+        return print(__doc__)
+    if a[0] in SUB:
+        if a[0] not in ("ls",) and len(a) < 2:
+            sys.exit(__doc__)
+        return SUB[a[0]](a[1:])
+    return cmd_interactive(a[0], " ".join(a[1:]) or None)
+
+
+if __name__ == "__main__":
+    main()

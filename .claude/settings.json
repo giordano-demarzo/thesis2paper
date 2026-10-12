@@ -1,0 +1,33 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/t2p_statusline.py"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/t2p_run.py:*)",
+      "Bash(python3 scripts/t2p_run.py:*)",
+      "Bash(python scripts/t2p_ledger.py:*)",
+      "Bash(python3 scripts/t2p_ledger.py:*)",
+      "Bash(python scripts/new_project.py:*)",
+      "Bash(latexmk:*)",
+      "Bash(pdflatex:*)",
+      "Bash(bibtex:*)",
+      "Bash(pdfinfo:*)",
+      "Bash(pdftotext:*)",
+      "Bash(texcount:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(git -C projects/:*)",
+      "Edit(projects/**)",
+      "Write(projects/**)",
+      "Edit(lab/wiki/**)",
+      "Write(lab/wiki/**)",
+      "Edit(lab/refs.bib)"
+    ],
+    "deny": [
+      "Edit(projects/*/raw/**)",
+      "Write(projects/*/raw/**)",
+      "Edit(lab/raw/**)"
+    ]
+  }
+}

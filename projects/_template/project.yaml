@@ -1,0 +1,40 @@
+# thesis2paper project config. Edited by /t2p-new, the PI, and checkpoint decisions.
+name: TEMPLATE
+created: null
+student: null            # name of the student (author of the thesis)
+
+target:                  # filled at the intake checkpoint
+  venue: undecided       # science-advances | pnas | nature-communications | other:<name>
+  backup_venues: []
+  headline: null         # one sentence: what the paper shows and why it matters broadly
+  audience: null         # who outside the subfield should care
+  scope: null            # what is in / out of this paper
+  notes: null
+
+mode:
+  default: guided        # guided | auto
+  stages:                # per-stage overrides, e.g. run: auto
+    intake: guided
+    assess: guided
+    plan: guided
+    run: auto
+    report: guided
+    write: guided
+  max_experiment_rounds: 3
+
+compute:
+  gpu_ids: [0]           # GPUs this pipeline may use on the server
+  max_parallel_jobs: 2
+  gpu_hours_budget_per_round: 24
+  default_timeout_hours: 24
+
+repo: {}                 # filled by new_project.py: path, worktree, base_commit, branch
+
+context:
+  lab_style: lab/wiki/style-profile.md
+  extra_papers: []       # project-specific papers are in raw/papers/
+
+state:                   # updated by each stage
+  stage: setup           # setup | intake | assess | plan | run | report | write | done
+  round: 0
+  next_decision: 1       # number for the next wiki/decisions/NN-*.md file

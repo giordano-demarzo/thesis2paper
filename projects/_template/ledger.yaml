@@ -1,0 +1,2 @@
+# Claims <-> evidence ledger. Schema in CLAUDE.md. Validate: python scripts/t2p_ledger.py check <project>
+claims: []

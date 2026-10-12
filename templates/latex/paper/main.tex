@@ -1,0 +1,43 @@
+% thesis2paper paper skeleton (venue-neutral). Swap in the venue class (pnas-new, sciadv, Nature)
+% only at the end; keep content in sections/*.tex so the swap is mechanical.
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise]{cleveref}
+\usepackage{lineno}\linenumbers
+\usepackage{authblk}
+
+\input{generated/results}               % result macros from ledger.yaml — never type numbers by hand
+\newcommand{\needcite}[1]{\textcolor{red}{[cite: #1]}}
+\newcommand{\todo}[1]{\textcolor{orange}{[TODO: #1]}}
+
+\title{\todo{Title}}
+\author[1]{\todo{Student}}
+\author[1]{\todo{PI}}
+\affil[1]{\todo{Affiliation}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+% PNAS only: significance statement (<=120 words, lay audience)
+% \section*{Significance}\input{sections/significance}
+
+\input{sections/introduction}
+\section*{Results}
+\input{sections/results}
+\section*{Discussion}
+\input{sections/discussion}
+\section*{Methods}
+\input{sections/methods}
+
+\bibliographystyle{unsrtnat}
+\bibliography{refs}
+\end{document}

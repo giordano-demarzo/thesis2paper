@@ -1,0 +1,47 @@
+% thesis2paper one-pager. Must fit on ONE page. Fill every \fillme; delete unused blocks.
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=1.6cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,booktabs,xcolor,enumitem,tabularx}
+\usepackage[hidelinks]{hyperref}
+\setlist{nosep,leftmargin=1.2em}
+\pagestyle{empty}
+\definecolor{ok}{HTML}{1B7F3B}\definecolor{warn}{HTML}{B26B00}\definecolor{bad}{HTML}{B3261E}
+\newcommand{\fillme}[1]{\textcolor{bad}{[#1]}}
+\newcommand{\st}[1]{\textsf{\footnotesize #1}}          % status tag
+\newcommand{\sok}{\textcolor{ok}{\st{reproduced}}}
+\newcommand{\sver}{\textcolor{ok}{\st{verified}}}
+\newcommand{\sthesis}{\textcolor{warn}{\st{thesis-only}}}
+\newcommand{\sweak}{\textcolor{warn}{\st{weak}}}
+\newcommand{\sdisc}{\textcolor{bad}{\st{discrepancy}}}
+\newcommand{\smiss}{\textcolor{bad}{\st{missing}}}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+{\large\textbf{\fillme{Project} --- \fillme{Round NN: stage}}}\hfill \fillme{date}\par
+\small Target: \fillme{venue} \quad Status: \fillme{e.g. 2/4 claims solid; 1 discrepancy}\par\medskip
+
+\textbf{Headline (one sentence).} \fillme{What the paper shows, and why someone outside the subfield should care.}
+
+\medskip\textbf{What we have}\par
+\begin{tabularx}{\linewidth}{@{}l X l@{}}
+\toprule
+ID & Claim & Status \\ \midrule
+C1 & \fillme{claim, with key number if any} & \sok \\
+\bottomrule
+\end{tabularx}
+
+\medskip\textbf{What we miss to make it a paper}
+\begin{itemize}
+  \item \fillme{gap $\to$ why reviewers/editors will care $\to$ how to close it}
+\end{itemize}
+
+\medskip\textbf{Positioning.} \fillme{2--3 lines: closest prior work, what is new, risk of looking incremental.}
+
+\medskip\textbf{Proposed next step (default).} \fillme{concrete; with GPU-h estimate if experiments}
+
+\medskip\textbf{Decisions needed from you.}
+\begin{enumerate}
+  \item \fillme{question}
+\end{enumerate}
+\end{document}

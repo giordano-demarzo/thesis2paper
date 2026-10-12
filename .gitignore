@@ -1,0 +1,18 @@
+# Student projects stay local (unpublished theses, drafts): everything except the template
+projects/*
+!projects/_template/
+
+# build / caches
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.nav
+*.snm
+*.bbl
+*.blg
+__pycache__/
+.ipynb_checkpoints/

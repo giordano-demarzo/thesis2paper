@@ -1,0 +1,22 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise]{cleveref}
+\input{generated/results}
+\newcommand{\needcite}[1]{\textcolor{red}{[cite: #1]}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\thesection}{S\arabic{section}}
+
+\title{Supplementary Information for: \textcolor{orange}{[Title]}}
+\date{}
+\begin{document}
+\maketitle
+\tableofcontents
+\input{sections/si_body}
+\bibliographystyle{unsrtnat}
+\bibliography{refs}
+\end{document}
