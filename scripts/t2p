@@ -4,7 +4,7 @@
   t2p                          interactive session (lab level)
   t2p <project>                interactive session focused on a project (shows status first)
   t2p <project> "<message>"    interactive session starting with your message (e.g. "/t2p-assess p")
-  t2p new <name> <thesis> <repo> [--venue v] [--papers ...]
+  t2p new <name> [--repo URL|path] [--thesis path] [--venue v]   (defaults: inbox/<name>/)
   t2p ls                       list projects (no LLM)
   t2p status <project>         stage, ledger, runs, budget, pending decision (no LLM)
   t2p runs <project>           experiment runs (no LLM)
@@ -146,7 +146,7 @@ def cmd_new(args):
 def cmd_ls(_):
     rows = projects()
     if not rows:
-        print("no projects yet — t2p new <name> <thesis> <repo>")
+        print("no projects yet — put the thesis in inbox/<name>/ and run: t2p new <name> --repo <URL>")
         return
     print(f"{B}{'project':<22}{'stage':<10}{'round':<7}{'venue':<24}{'auto run':<10}pending decision{X}")
     for n in rows:

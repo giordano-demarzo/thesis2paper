@@ -27,7 +27,9 @@
     "deny": [
       "Edit(projects/*/raw/**)",
       "Write(projects/*/raw/**)",
-      "Edit(lab/raw/**)"
+      "Edit(lab/raw/**)",
+      "Edit(projects/*/source/**)",
+      "Write(projects/*/source/**)"
     ]
   }
 }

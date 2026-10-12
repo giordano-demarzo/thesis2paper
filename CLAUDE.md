@@ -21,12 +21,15 @@ lab/                          # LAB WIKI — persists across students
   wiki/lessons.md             #   lessons promoted from finished projects
   refs.bib                    #   verified bibliography shared across projects
 
+inbox/<name>/                 # drop zone: thesis (PDF/LaTeX), papers/, repo.txt → read by /t2p-new
+
 projects/<name>/              # PROJECT WIKI — one per thesis (created from projects/_template)
   project.yaml                #   target, venue, mode (guided/auto), budgets, repo pointer
   ledger.yaml                 #   CLAIMS <-> EVIDENCE ledger. The backbone. See below.
   raw/thesis/                 #   thesis PDF/source + extracted text. Immutable.
   raw/papers/                 #   project-specific context papers. Immutable.
   raw/runs/<exp-id>/          #   experiment outputs, written only by scripts/t2p_run.py. Immutable.
+  source/repo/                #   pristine clone of the student repo (when given a URL). Never edit.
   work/repo/                  #   git worktree of the student repo on branch t2p/<name>. Edit HERE only.
   experiments/<exp-id>.yaml   #   experiment specs (see scripts/t2p_run.py)
   wiki/index.md  wiki/log.md
@@ -44,7 +47,7 @@ scripts/                      # new_project.py, t2p_run.py, t2p_ledger.py
 
 ## Hard rules
 
-1. **Raw is immutable.** Never edit anything under `raw/`. Never edit the student's original repo;
+1. **Raw is immutable.** Never edit anything under `raw/`. Never edit the student's original repo (or `source/repo`);
    all code changes go in `projects/<name>/work/repo` (a git worktree), committed with clear messages.
 2. **Every number and claim in a deliverable traces to a raw source.** The wiki is for thinking and
    navigation; deliverables are grounded in `raw/` and `ledger.yaml`. Quantitative results in the

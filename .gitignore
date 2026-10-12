@@ -1,6 +1,8 @@
 # Student projects stay local (unpublished theses, drafts): everything except the template
 projects/*
 !projects/_template/
+inbox/*
+!inbox/.gitkeep
 
 # build / caches
 *.aux

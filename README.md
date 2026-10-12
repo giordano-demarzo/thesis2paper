@@ -27,8 +27,10 @@ then `t2p resume <p>` to discuss the round with the full context of what the run
 3. Venue pages are in `lab/wiki/venues/`; refresh with `/lab-ingest <guidelines URL> venue`.
 
 ## Per thesis
+Put the thesis (PDF and/or LaTeX source) in `inbox/<name>/` (optional: context papers in
+`inbox/<name>/papers/`), then `t2p new <name> --repo <github URL>` and `t2p <name>`.
 ```
-/t2p-new <name> <thesis.pdf> <repo-path> [venue]   # project + git worktree of the student repo
+/t2p-new <name> [repo URL] [venue]   # clone + worktree of the student repo, copy thesis from inbox
 /t2p-intake <name>     # ingest → chat: headline, venue, scope
 /t2p-assess <name>     # repro audit + positioning + gaps → 1-page + 10 slides → chat
 /t2p-plan <name>       # costed experiments → chat
